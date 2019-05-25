@@ -21,7 +21,7 @@ RUN yum -y install \
     libXft
 
 # Install bs4 - required by sparkconnector.serverextension
-RUN pip3 install bs4
+RUN pip3 --no-cache-dir install bs4
 
 # Install tk - required by matplotlib
 RUN yum -y install tk
@@ -90,10 +90,13 @@ RUN yum -y install java-1.8.0-openjdk && \
 RUN yum -y install HEP_OSlibs
 
 
-####################################################################
-# Nvidia related commands                                          #
-# https://gitlab.com/nvidia/cuda/blob/centos7/10.0/base/Dockerfile #
-####################################################################
+########################################################################################
+# Nvidia related commands                                                              #
+# CUDA BASE https://gitlab.com/nvidia/cuda/blob/centos7/10.0/base/Dockerfile           #
+# CUDA RUNTIME https://gitlab.com/nvidia/cuda/blob/centos7/10.0/runtime/Dockerfile     #
+# CUDA DEVEL https://gitlab.com/nvidia/cuda/blob/centos7/10.0/devel/Dockerfile         #
+# cuDNN DEVEL https://gitlab.com/nvidia/cuda/blob/centos7/10.0/devel/cudnn7/Dockerfile #
+########################################################################################
 
 ENV CUDA_VERSION 10.0.130
 ENV CUDNN_VERSION 7.5.1.10
@@ -111,26 +114,13 @@ ENV CUDA_PKG_VERSION 10-0-$CUDA_VERSION-1
 # CUDA BASE 
 RUN yum install -y \
         cuda-cudart-$CUDA_PKG_VERSION \
-        cuda-compat-10-0 && \
+        cuda-compat-10-0 cuda-cublas-10-0.x86_64 cuda-cusolver-10-0.x86_64 && \
     ln -s cuda-10.0 /usr/local/cuda 
-
-#CUDA RUNTIME https://gitlab.com/nvidia/cuda/blob/centos7/10.0/runtime/Dockerfile
-RUN yum install -y \
-        cuda-libraries-$CUDA_PKG_VERSION \
-        cuda-nvtx-$CUDA_PKG_VERSION 
-
-#CUDA DEVEL https://gitlab.com/nvidia/cuda/blob/centos7/10.0/devel/Dockerfile
-# RUN yum install -y \
-#         cuda-libraries-dev-$CUDA_PKG_VERSION \
-#         cuda-nvml-dev-$CUDA_PKG_VERSION \
-#         cuda-minimal-build-$CUDA_PKG_VERSION \
-#         cuda-command-line-tools-$CUDA_PKG_VERSION
 
 ####################
 # Installing CUDNN #
 ####################
         
-LABEL com.nvidia.cudnn.version="${CUDNN_VERSION}"
 
 # cuDNN RUNTIME https://gitlab.com/nvidia/cuda/blob/centos7/10.0/runtime/cudnn7/Dockerfile
 # cuDNN license: https://developer.nvidia.com/cudnn/license_agreement
@@ -138,31 +128,24 @@ RUN CUDNN_DOWNLOAD_SUM=c0a4ec438920aa581dd567117b9c316745b4a451ac739b1e04939a3d8
     curl -fsSL http://developer.download.nvidia.com/compute/redist/cudnn/v7.5.1/cudnn-10.0-linux-x64-v7.5.1.10.tgz -O && \
     echo "$CUDNN_DOWNLOAD_SUM  cudnn-10.0-linux-x64-v7.5.1.10.tgz" | sha256sum -c - && \
     tar --no-same-owner -xzf cudnn-10.0-linux-x64-v7.5.1.10.tgz -C /usr/local --wildcards 'cuda/lib64/libcudnn.so.*' && \
-    rm cudnn-10.0-linux-x64-v7.5.1.10.tgz && \
+    rm -rf cudnn-10.0-linux-x64-v7.5.1.10.tgz && \
     ldconfig
 
-# cuDNN DEVEL https://gitlab.com/nvidia/cuda/blob/centos7/10.0/devel/cudnn7/Dockerfile
-# RUN CUDNN_DOWNLOAD_SUM=c0a4ec438920aa581dd567117b9c316745b4a451ac739b1e04939a3d8b229985 && \
-#     curl -fsSL http://developer.download.nvidia.com/compute/redist/cudnn/v7.5.1/cudnn-10.0-linux-x64-v7.5.1.10.tgz -O && \
-#     echo "$CUDNN_DOWNLOAD_SUM  cudnn-10.0-linux-x64-v7.5.1.10.tgz" | sha256sum -c - && \
-#     tar --no-same-owner -xzf cudnn-10.0-linux-x64-v7.5.1.10.tgz -C /usr/local && \
-#     rm cudnn-10.0-linux-x64-v7.5.1.10.tgz && \
-#     ldconfig
         
 # nvidia-docker 
 RUN echo "/usr/local/nvidia/lib" >> /etc/ld.so.conf.d/nvidia.conf && \
     echo "/usr/local/nvidia/lib64" >> /etc/ld.so.conf.d/nvidia.conf
 
 ENV PATH /usr/local/nvidia/bin:/usr/local/cuda/bin:${PATH}
-ENV LD_LIBRARY_PATH /usr/local/nvidia/lib:/usr/local/nvidia/lib64:/usr/local/cuda/compat:${LD_LIBRARY_PATH}
+ENV LD_LIBRARY_PATH /usr/local/nvidia/lib:/usr/local/nvidia/lib64:/usr/local/cuda-10.0/targets/x86_64-linux/lib:${LD_LIBRARY_PATH}
 ENV CUDA_HOME /usr/local/cuda
 
 # nvidia-container-runtime
 ENV NVIDIA_VISIBLE_DEVICES all
 ENV NVIDIA_DRIVER_CAPABILITIES compute,utility
-ENV NVIDIA_REQUIRE_CUDA "cuda>=10.0 brand=tesla,driver>=384,driver<385 brand=tesla,driver>=410,driver<411"
+ENV NVIDIA_REQUIRE_CUDA "cuda>=10.0 brand=tesla,driver>=384,driver<385 brand=tesla,driver>=410,driver<=430"
 
-RUN pip3 install 'tensorflow-gpu==1.13.1'
+RUN pip3 --no-cache-dir install 'tensorflow-gpu==1.13.1'
 
 
 # WORKAROUND
@@ -173,7 +156,7 @@ RUN mv /usr/local/lib/python3.6/site-packages/ipykernel /usr/local/lib/python3.6
 # Add ipykernel and its dependencies to an isolated place referenced by PYTHONPATH in user env (Py3)
 # Needed to prevent updated Jupyter code to break with older LCG versions (this way it picks always the correct pkgs)
 RUN mkdir /usr/local/lib/swan && \
-    pip3 install 'ipykernel==4.8.2' -t /usr/local/lib/swan
+    pip3 --no-cache-dir install 'ipykernel==4.8.2' -t /usr/local/lib/swan
 
 # Download and install all of our extensions
 # Dummy var to force docker to build from this point on (otherwise, due to the caching, this layer would not get the latest release-daily)
