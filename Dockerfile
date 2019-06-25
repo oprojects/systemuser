@@ -114,7 +114,7 @@ ENV CUDA_PKG_VERSION 10-0-$CUDA_VERSION-1
 # CUDA BASE 
 RUN yum install -y \
         cuda-cudart-$CUDA_PKG_VERSION \
-        cuda-compat-10-0 cuda-cublas-10-0.x86_64 cuda-cusolver-10-0.x86_64 && \
+        cuda-compat-10-0 cuda-cublas-10-0.x86_64 cuda-cusolver-10-0.x86_64 cuda-cufft-10-0.x86_64 cuda-curand-10-0.x86_64 cuda-cusparse-10-0.x86_64 && \
     ln -s cuda-10.0 /usr/local/cuda 
 
 ####################
